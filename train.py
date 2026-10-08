@@ -45,7 +45,7 @@ def learn(q_network, target_network, optimizer, buffer, config):
     where each state and next_state are tensors of shape [1,4]
     '''
 
-    if len(buffer) < config.batch_size:         # have to have enough memories sampled
+    if len(buffer) < config.batch_size:         # have to have enough memories stored
         return
 
     # random batch, each part stacked into one tensor
@@ -78,13 +78,15 @@ def learn(q_network, target_network, optimizer, buffer, config):
 
 
 
-def train(name, config=None):
+def train(name, config=None, sampler = None):
     '''
     Function trains the standart QNetwork provided with DQN and saves the weights
     as weights/<name>.pth.
     Args:
     name = name of the file to save like "baseline_seed0" for example
     config = specify lenght range for the poles and seed, defaults to config.py if not set
+    sampler is an optional argument = picks the pole length for every episode and (check samplers.py)
+    if it is not set lengths come from config.py
     '''
     config = config or Config()
 
@@ -103,8 +105,11 @@ def train(name, config=None):
     total_steps, history, best_average = 0, [], 0.0
 
     for episode in range(config.episodes):
-    
-        length = random.uniform(*config.length_range)
+        #sampler picks the pole lenght for the episode if set
+        if sampler:
+            length = sampler.sample()
+        else:
+            length = random.uniform(*config.length_range)
         env.unwrapped.length = length
 
         state, _ = env.reset(seed=config.seed if episode == 0 else None)
@@ -129,6 +134,8 @@ def train(name, config=None):
         history.append(steps)
         average = sum(history[-20:]) / len(history[-20:])
 
+        if sampler: #back to sampler - how many steps survived at this sampled length 
+            sampler.update(length, steps)
 
         # keep the best checkpoint only as the DQN can get worse later in training
         if len(history) >= 20 and average > best_average:
@@ -140,7 +147,11 @@ def train(name, config=None):
                   f"average of last 20: {average:.1f}  epsilon {epsilon:.2f}")
 
     env.close()
-    print(f"[{name}] saved {path} (best average {best_average:.1f})")
+    if best_average > 0:
+        print(f"[{name}] saved {path} (best average {best_average:.1f})")
+    else:
+        print(f"[{name}] nothing saved, less than 20 episodes ran")
+
     return path
 
 
