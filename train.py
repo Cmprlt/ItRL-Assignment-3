@@ -220,5 +220,6 @@ def train(name, config=None, sampler = None):
 
 
 if __name__ == "__main__":
-    # creates the baseline with pole lenght default 0.5
-    train("baseline_seed0", Config(length_range=(0.5, 0.5), seed=0))
+    for seed in range(10):
+        config = Config(episodes=1000, seed=seed)
+        train(f"domain_randomized_seed{seed}", config)

@@ -84,14 +84,23 @@ def test_pole_length(env, q_network):
 
 def test_script():
     """
-    Function that simulates the trained NN over 30 different pole lengths, 10 times per length.
+    Evaluate all ten seed models over 30 pole lengths, with ten trials per model and length.
     """
 
     pole_lengths = np.linspace(0.4, 1.8, 30)
+    seeds = range(10)
+    runs_per_model = 10
     all_results = []
 
-    # import here your trained neural network
-    trained_nn = 'path_to_your_nn.pth'
+    models = []
+    for seed in seeds:
+        trained_nn = f"domain_randomized_seed{seed}.pth"
+        state_dim = 4
+        action_dim = 2
+        loaded_model = QNetwork(state_dim, action_dim)
+        loaded_model.load_state_dict(torch.load("weights/" + trained_nn, weights_only=True))
+        loaded_model.eval()
+        models.append(loaded_model)
 
     results = {}
     total_score = 0
@@ -99,25 +108,18 @@ def test_script():
     for length in pole_lengths:
         print(length)
 
-        pole_score = []
+        pole_scores = []
 
-        for x in range(10):
+        for loaded_model in models:
+            for _ in range(runs_per_model):
+                env = gym.make('CartPole-v1')
+                env.unwrapped.length = length
+                score = test_pole_length(env, loaded_model)
+                pole_scores.append(score)
+                env.close()
 
-            env = gym.make('CartPole-v1')
-            env.unwrapped.length = length
-
-            state_dim = env.observation_space.shape[0]
-            action_dim = env.action_space.n
-            loaded_model = QNetwork(state_dim, action_dim)
-            loaded_model.load_state_dict(torch.load("weights/" + trained_nn, weights_only=True))
-
-            # Switch to evaluation mode
-            loaded_model.eval()  # Use for inference
-            score = test_pole_length(env, loaded_model)
-            pole_score.append(score)
-
-        mean_score = np.mean(np.array(pole_score))
-        std_score = np.std(np.array(pole_score))
+        mean_score = np.mean(np.array(pole_scores))
+        std_score = np.std(np.array(pole_scores))
 
         total_score += mean_score
 
