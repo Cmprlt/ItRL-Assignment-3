@@ -77,6 +77,54 @@ def learn(q_network, target_network, optimizer, buffer, config):
             t.mul_(1 - config.tau).add_(config.tau * q)
 
 
+def plot_training_logs(name, training_logs):
+    os.makedirs("data", exist_ok=True)
+    plot_path = os.path.join("data", f"{name}_training_plot.png")
+    episodes = []
+    averages = []
+    epsilons = []
+    for entry in training_logs:
+        episodes.append(entry["episode"])
+        averages.append(entry["average_20"])
+        epsilons.append(entry["epsilon"])
+
+    figure, axes = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+    if episodes:
+        axes[0].plot(episodes, averages, marker="o", label="Average of last 20 episodes")
+        axes[1].plot(episodes, epsilons, color="tab:orange", marker="o", label="Epsilon")
+    else:
+        axes[0].text(0.5, 0.5, "No 25-episode summaries were recorded", ha="center", va="center")
+        axes[0].set_xlim(0, 1)
+    axes[0].set_ylabel("Average score")
+    axes[0].set_ylim(bottom=0)
+    axes[0].legend()
+    axes[0].grid(alpha=0.25)
+    axes[1].set_xlabel("Episode")
+    axes[1].set_ylabel("Epsilon")
+    axes[1].set_ylim(0, 1)
+    axes[1].grid(alpha=0.25)
+    figure.suptitle(f"{name} training logs")
+    figure.tight_layout()
+    figure.savefig(plot_path, dpi=150)
+    plt.close(figure)
+    return plot_path
+
+
+def save_training_logs_csv(name, training_logs):
+    os.makedirs("data", exist_ok=True)
+    log_path = os.path.join("data", f"{name}_training_log.csv")
+    with open(log_path, "w", newline="", encoding="utf-8") as log_file:
+        writer = csv.writer(log_file)
+        writer.writerow(["episode", "total_episodes", "average_of_last_20", "epsilon"])
+        for entry in training_logs:
+            writer.writerow([
+                entry["episode"],
+                entry["total_episodes"],
+                f"{entry['average_20']:.1f}",
+                f"{entry['epsilon']:.2f}",
+            ])
+    return log_path
+    
 
 def train(name, config=None, sampler = None):
     '''
