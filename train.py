@@ -6,6 +6,8 @@ import torch.optim as optim
 import gym
 from config import Config
 from network import QNetwork
+import csv
+import matplotlib.pyplot as plt
 
 
 def to_tensor(state):
@@ -115,13 +117,15 @@ def save_training_logs_csv(name, training_logs):
     log_path = os.path.join("data", f"{name}_training_log.csv")
     with open(log_path, "w", newline="", encoding="utf-8") as log_file:
         writer = csv.writer(log_file)
-        writer.writerow(["episode", "total_episodes", "average_of_last_20", "epsilon"])
+        writer.writerow(["episode", "total_episodes", "average_of_last_20", "epsilon","length", "steps" ])
         for entry in training_logs:
             writer.writerow([
                 entry["episode"],
                 entry["total_episodes"],
                 f"{entry['average_20']:.1f}",
                 f"{entry['epsilon']:.2f}",
+                entry["length"],
+                entry["steps"]
             ])
     return log_path
     
@@ -151,6 +155,7 @@ def train(name, config=None, sampler = None):
     os.makedirs("weights", exist_ok=True)
     path = os.path.join("weights", f"{name}.pth")
     total_steps, history, best_average = 0, [], 0.0
+    training_logs = []
 
     for episode in range(config.episodes):
         #sampler picks the pole lenght for the episode if set
@@ -181,6 +186,7 @@ def train(name, config=None, sampler = None):
 
         history.append(steps)
         average = sum(history[-20:]) / len(history[-20:])
+        training_logs.append({"episode": episode + 1, "length": length, "steps": steps, "total_episodes": config.episodes, "average_20": average, "epsilon": epsilon})
 
         if sampler: #back to sampler - how many steps survived at this sampled length 
             sampler.update(length, steps)
@@ -195,6 +201,8 @@ def train(name, config=None, sampler = None):
                   f"average of last 20: {average:.1f}  epsilon {epsilon:.2f}")
 
     env.close()
+    save_training_logs_csv(name, training_logs)
+    plot_training_logs(name, training_logs)
     if best_average > 0:
         print(f"[{name}] saved {path} (best average {best_average:.1f})")
     else:
