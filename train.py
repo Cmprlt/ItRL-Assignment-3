@@ -92,8 +92,8 @@ def plot_training_logs(name, training_logs):
 
     figure, axes = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
     if episodes:
-        axes[0].plot(episodes, averages, marker="o", label="Average of last 20 episodes")
-        axes[1].plot(episodes, epsilons, color="tab:orange", marker="o", label="Epsilon")
+        axes[0].plot(episodes, averages, label="Average of last 20 episodes")
+        axes[1].plot(episodes, epsilons, color="tab:orange", label="Epsilon")
     else:
         axes[0].text(0.5, 0.5, "No 25-episode summaries were recorded", ha="center", va="center")
         axes[0].set_xlim(0, 1)
