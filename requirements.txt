@@ -4,3 +4,4 @@ numpy<2
 pandas
 matplotlib
 openpyxl
+python==3.10
