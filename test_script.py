@@ -94,7 +94,7 @@ def test_script():
 
     models = []
     for seed in seeds:
-        trained_nn = f"domain_randomized_seed{seed}.pth"
+        trained_nn = f"boundary_focused_seed{seed}.pth"
         state_dim = 4
         action_dim = 2
         loaded_model = QNetwork(state_dim, action_dim)
