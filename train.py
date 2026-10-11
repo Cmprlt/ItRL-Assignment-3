@@ -1,9 +1,13 @@
 import os
 import random
+import csv
 from collections import deque
 import torch
 import torch.optim as optim
 import gym
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 from config import Config
 from network import QNetwork
 
@@ -77,6 +81,55 @@ def learn(q_network, target_network, optimizer, buffer, config):
             t.mul_(1 - config.tau).add_(config.tau * q)
 
 
+def save_training_logs_csv(name, training_logs):
+    os.makedirs("data", exist_ok=True)
+    log_path = os.path.join("data", f"{name}_training_log.csv")
+    with open(log_path, "w", newline="", encoding="utf-8") as log_file:
+        writer = csv.writer(log_file)
+        writer.writerow(["episode", "total_episodes", "average_of_last_20", "epsilon"])
+        for entry in training_logs:
+            writer.writerow([
+                entry["episode"],
+                entry["total_episodes"],
+                f"{entry['average_20']:.1f}",
+                f"{entry['epsilon']:.2f}",
+            ])
+    return log_path
+
+
+def plot_training_logs(name, training_logs):
+    os.makedirs("data", exist_ok=True)
+    plot_path = os.path.join("data", f"{name}_training_plot.png")
+    episodes = []
+    averages = []
+    epsilons = []
+    for entry in training_logs:
+        episodes.append(entry["episode"])
+        averages.append(entry["average_20"])
+        epsilons.append(entry["epsilon"])
+
+    figure, axes = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+    if episodes:
+        axes[0].plot(episodes, averages, marker="o", label="Average of last 20 episodes")
+        axes[1].plot(episodes, epsilons, color="tab:orange", marker="o", label="Epsilon")
+    else:
+        axes[0].text(0.5, 0.5, "No 25-episode summaries were recorded", ha="center", va="center")
+        axes[0].set_xlim(0, 1)
+    axes[0].set_ylabel("Average score")
+    axes[0].set_ylim(bottom=0)
+    axes[0].legend()
+    axes[0].grid(alpha=0.25)
+    axes[1].set_xlabel("Episode")
+    axes[1].set_ylabel("Epsilon")
+    axes[1].set_ylim(0, 1)
+    axes[1].grid(alpha=0.25)
+    figure.suptitle(f"{name} training logs")
+    figure.tight_layout()
+    figure.savefig(plot_path, dpi=150)
+    plt.close(figure)
+    return plot_path
+
+
 
 def train(name, config=None, sampler = None):
     '''
@@ -103,6 +156,7 @@ def train(name, config=None, sampler = None):
     os.makedirs("weights", exist_ok=True)
     path = os.path.join("weights", f"{name}.pth")
     total_steps, history, best_average = 0, [], 0.0
+    training_logs = []
 
     for episode in range(config.episodes):
         #sampler picks the pole lenght for the episode if set
@@ -143,14 +197,24 @@ def train(name, config=None, sampler = None):
             torch.save(q_network.state_dict(), path)
 
         if (episode + 1) % 25 == 0:
+            training_logs.append({
+                "episode": episode + 1,
+                "total_episodes": config.episodes,
+                "average_20": average,
+                "epsilon": epsilon,
+            })
             print(f"[{name}] episode {episode + 1}/{config.episodes}  "
                   f"average of last 20: {average:.1f}  epsilon {epsilon:.2f}")
 
     env.close()
+    log_path = save_training_logs_csv(name, training_logs)
+    plot_path = plot_training_logs(name, training_logs)
     if best_average > 0:
         print(f"[{name}] saved {path} (best average {best_average:.1f})")
     else:
         print(f"[{name}] nothing saved, less than 20 episodes ran")
+    print(f"[{name}] training log saved to {log_path}")
+    print(f"[{name}] training plot saved to {plot_path}")
 
     return path
 
