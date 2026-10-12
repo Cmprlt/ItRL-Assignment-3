@@ -1,6 +1,6 @@
-from boundary_focused_sampler import BoundarySampler
-from train import train
-from config import Config
+from config.settings import Config
+from samplers.boundary_focused import BoundarySampler
+from training.train import train
 
 if __name__ == "__main__":
     for seed in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:

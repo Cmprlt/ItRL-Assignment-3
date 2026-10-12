@@ -1,13 +1,15 @@
 import os
 import random
+import csv
 from collections import deque
 import torch
 import torch.optim as optim
 import gym
-from config import Config
-from network import QNetwork
-import csv
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from config.settings import Config
+from models.q_network import QNetwork
 
 
 def to_tensor(state):
@@ -79,6 +81,22 @@ def learn(q_network, target_network, optimizer, buffer, config):
             t.mul_(1 - config.tau).add_(config.tau * q)
 
 
+def save_training_logs_csv(name, training_logs):
+    os.makedirs("data", exist_ok=True)
+    log_path = os.path.join("data", f"{name}_training_log.csv")
+    with open(log_path, "w", newline="", encoding="utf-8") as log_file:
+        writer = csv.writer(log_file)
+        writer.writerow(["episode", "total_episodes", "average_of_last_20", "epsilon"])
+        for entry in training_logs:
+            writer.writerow([
+                entry["episode"],
+                entry["total_episodes"],
+                f"{entry['average_20']:.1f}",
+                f"{entry['epsilon']:.2f}",
+            ])
+    return log_path
+
+
 def plot_training_logs(name, training_logs):
     os.makedirs("data", exist_ok=True)
     plot_path = os.path.join("data", f"{name}_training_plot.png")
@@ -92,8 +110,8 @@ def plot_training_logs(name, training_logs):
 
     figure, axes = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
     if episodes:
-        axes[0].plot(episodes, averages, label="Average of last 20 episodes")
-        axes[1].plot(episodes, epsilons, color="tab:orange", label="Epsilon")
+        axes[0].plot(episodes, averages, marker="o", label="Average of last 20 episodes")
+        axes[1].plot(episodes, epsilons, color="tab:orange", marker="o", label="Epsilon")
     else:
         axes[0].text(0.5, 0.5, "No 25-episode summaries were recorded", ha="center", va="center")
         axes[0].set_xlim(0, 1)
@@ -112,20 +130,7 @@ def plot_training_logs(name, training_logs):
     return plot_path
 
 
-def save_training_logs_csv(name, training_logs):
-    os.makedirs("data", exist_ok=True)
-    log_path = os.path.join("data", f"{name}_training_log.csv")
-    with open(log_path, "w", newline="", encoding="utf-8") as log_file:
-        writer = csv.writer(log_file)
-        writer.writerow(["episode", "total_episodes", "average_of_last_20", "epsilon","length", "steps" ])
-        for entry in training_logs:
-            writer.writerow([
-                entry["episode"],
-                entry["total_episodes"],
-                f"{entry['average_20']:.1f}",
-                f"{entry['epsilon']:.2f}",
-            ])
-    return log_path
+
 
 def train(name, config=None, sampler=None, episode_callback=None):
     '''
@@ -219,8 +224,3 @@ def train(name, config=None, sampler=None, episode_callback=None):
 
     return path
 
-
-if __name__ == "__main__":
-    # creates the baseline with pole lenght default 0.5
-    for seed in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
-        train(f"baseline_seed{seed}", Config(length_range= (0.5, 0.5), episodes = 1000, seed=seed))
