@@ -222,4 +222,5 @@ def train(name, config=None, sampler=None, episode_callback=None):
 
 if __name__ == "__main__":
     # creates the baseline with pole lenght default 0.5
-    train("baseline_seed0", Config(length_range=(0.5, 0.5), seed=0))
+    for seed in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]:
+        train(f"baseline_seed{seed}", Config(length_range= (0.5, 0.5), episodes = 1000, seed=seed))
