@@ -124,13 +124,10 @@ def save_training_logs_csv(name, training_logs):
                 entry["total_episodes"],
                 f"{entry['average_20']:.1f}",
                 f"{entry['epsilon']:.2f}",
-                entry["length"],
-                entry["steps"]
             ])
     return log_path
-    
 
-def train(name, config=None, sampler = None):
+def train(name, config=None, sampler=None, episode_callback=None):
     '''
     Function trains the standart QNetwork provided with DQN and saves the weights
     as weights/<name>.pth.
@@ -139,6 +136,10 @@ def train(name, config=None, sampler = None):
     config = specify lenght range for the poles and seed, defaults to config.py if not set
     sampler is an optional argument = picks the pole length for every episode and (check samplers.py)
     if it is not set lengths come from config.py
+    episode_callback = optional callable invoked after each episode (and after
+    sampler.update, when a sampler is used). Receives a dict with episode,
+    pole_length, steps_survived, and epsilon. Defaults to None so existing
+    strategies are unchanged.
     '''
     config = config or Config()
 
@@ -190,6 +191,14 @@ def train(name, config=None, sampler = None):
 
         if sampler: #back to sampler - how many steps survived at this sampled length 
             sampler.update(length, steps)
+
+        if episode_callback is not None:
+            episode_callback({
+                "episode": episode + 1,
+                "pole_length": length,
+                "steps_survived": steps,
+                "epsilon": epsilon,
+            })
 
         # keep the best checkpoint only as the DQN can get worse later in training
         if len(history) >= 20 and average > best_average:
