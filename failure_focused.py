@@ -8,7 +8,7 @@ import random
 
 class FailureFocusedSampler:
     '''
-    Adaptive Failure-Focused Pole-Length Sampling (Strategy 5).
+    Adaptive Failure-Focused Pole-Length Sampling strategy.
 
     Divides the continuous length range into equal-width bins and tracks an EMA
     of survival steps per bin. After a uniform warm-up period, samples bins with
@@ -30,8 +30,7 @@ class FailureFocusedSampler:
         self.warmup_episodes = warmup_episodes
         self.ema_alpha = ema_alpha
         self.focus_weight = focus_weight
-        # Dedicated RNG so sampler randomness is reproducible without
-        # interfering with the global random state used by DQN exploration.
+        # Dedicated RNG so sampler randomness is reproducible without interfering with the global random state used by DQN exploration.
         self.rng = random.Random(seed)
 
         self.bin_width = (self.high - self.low) / self.num_bins
@@ -47,8 +46,6 @@ class FailureFocusedSampler:
 
         self._eps = 1e-8
 
-        # Read-only metadata from the most recent sample()/update() for logging.
-        # Recording these must not consume RNG or alter sampling behaviour.
         self._last_bin_index = None
         self._last_phase = None
         self._last_selected_probability = None
@@ -81,7 +78,6 @@ class FailureFocusedSampler:
 
         total_diff = sum(difficulties)
         if total_diff <= self._eps:
-            # Degenerate case: treat as uniform difficulty.
             normalized = [uniform] * self.num_bins
         else:
             normalized = [d / total_diff for d in difficulties]
@@ -90,7 +86,7 @@ class FailureFocusedSampler:
             (1.0 - self.focus_weight) * uniform + self.focus_weight * p
             for p in normalized
         ]
-        # Numerical hygiene: force exact sum of 1 without changing intent.
+
         total = sum(probs)
         return [p / total for p in probs]
 
@@ -107,7 +103,6 @@ class FailureFocusedSampler:
         ema_min = min(observed)
         ema_max = max(observed)
 
-        # All observed EMAs effectively equal -> uniform difficulty.
         if abs(ema_max - ema_min) <= self._eps:
             return [1.0] * self.num_bins
 
