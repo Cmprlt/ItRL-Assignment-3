@@ -1,5 +1,5 @@
 '''
-Strategy 5: Adaptive Failure-Focused Pole-Length Sampling.
+Adaptive Failure-Focused Pole-Length Sampling strategy
 '''
 import csv
 import os
