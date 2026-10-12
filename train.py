@@ -6,8 +6,9 @@ import torch.optim as optim
 import gym
 from config import Config
 from network import QNetwork
-import matplotlib.pyplot as plt
 import csv
+import matplotlib.pyplot as plt
+
 
 def to_tensor(state):
     '''
@@ -91,8 +92,8 @@ def plot_training_logs(name, training_logs):
 
     figure, axes = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
     if episodes:
-        axes[0].plot(episodes, averages, marker="o", label="Average of last 20 episodes")
-        axes[1].plot(episodes, epsilons, color="tab:orange", marker="o", label="Epsilon")
+        axes[0].plot(episodes, averages, label="Average of last 20 episodes")
+        axes[1].plot(episodes, epsilons, color="tab:orange", label="Epsilon")
     else:
         axes[0].text(0.5, 0.5, "No 25-episode summaries were recorded", ha="center", va="center")
         axes[0].set_xlim(0, 1)
@@ -116,7 +117,7 @@ def save_training_logs_csv(name, training_logs):
     log_path = os.path.join("data", f"{name}_training_log.csv")
     with open(log_path, "w", newline="", encoding="utf-8") as log_file:
         writer = csv.writer(log_file)
-        writer.writerow(["episode", "total_episodes", "average_of_last_20", "epsilon"])
+        writer.writerow(["episode", "total_episodes", "average_of_last_20", "epsilon","length", "steps" ])
         for entry in training_logs:
             writer.writerow([
                 entry["episode"],
@@ -155,6 +156,7 @@ def train(name, config=None, sampler=None, episode_callback=None):
     os.makedirs("weights", exist_ok=True)
     path = os.path.join("weights", f"{name}.pth")
     total_steps, history, best_average = 0, [], 0.0
+    training_logs = []
 
     for episode in range(config.episodes):
         #sampler picks the pole lenght for the episode if set
@@ -185,6 +187,7 @@ def train(name, config=None, sampler=None, episode_callback=None):
 
         history.append(steps)
         average = sum(history[-20:]) / len(history[-20:])
+        training_logs.append({"episode": episode + 1, "length": length, "steps": steps, "total_episodes": config.episodes, "average_20": average, "epsilon": epsilon})
 
         if sampler: #back to sampler - how many steps survived at this sampled length 
             sampler.update(length, steps)
@@ -207,6 +210,8 @@ def train(name, config=None, sampler=None, episode_callback=None):
                   f"average of last 20: {average:.1f}  epsilon {epsilon:.2f}")
 
     env.close()
+    save_training_logs_csv(name, training_logs)
+    plot_training_logs(name, training_logs)
     if best_average > 0:
         print(f"[{name}] saved {path} (best average {best_average:.1f})")
     else:
