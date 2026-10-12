@@ -8,8 +8,8 @@ import gym
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from config import Config
-from network import QNetwork
+from config.settings import Config
+from models.q_network import QNetwork
 
 
 def to_tensor(state):
@@ -131,7 +131,8 @@ def plot_training_logs(name, training_logs):
 
 
 
-def train(name, config=None, sampler = None):
+
+def train(name, config=None, sampler=None, episode_callback=None):
     '''
     Function trains the standart QNetwork provided with DQN and saves the weights
     as weights/<name>.pth.
@@ -140,6 +141,10 @@ def train(name, config=None, sampler = None):
     config = specify lenght range for the poles and seed, defaults to config.py if not set
     sampler is an optional argument = picks the pole length for every episode and (check samplers.py)
     if it is not set lengths come from config.py
+    episode_callback = optional callable invoked after each episode (and after
+    sampler.update, when a sampler is used). Receives a dict with episode,
+    pole_length, steps_survived, and epsilon. Defaults to None so existing
+    strategies are unchanged.
     '''
     config = config or Config()
 
@@ -187,9 +192,18 @@ def train(name, config=None, sampler = None):
 
         history.append(steps)
         average = sum(history[-20:]) / len(history[-20:])
+        training_logs.append({"episode": episode + 1, "length": length, "steps": steps, "total_episodes": config.episodes, "average_20": average, "epsilon": epsilon})
 
         if sampler: #back to sampler - how many steps survived at this sampled length 
             sampler.update(length, steps)
+
+        if episode_callback is not None:
+            episode_callback({
+                "episode": episode + 1,
+                "pole_length": length,
+                "steps_survived": steps,
+                "epsilon": epsilon,
+            })
 
         # keep the best checkpoint only as the DQN can get worse later in training
         if len(history) >= 20 and average > best_average:
@@ -197,29 +211,16 @@ def train(name, config=None, sampler = None):
             torch.save(q_network.state_dict(), path)
 
         if (episode + 1) % 25 == 0:
-            training_logs.append({
-                "episode": episode + 1,
-                "total_episodes": config.episodes,
-                "average_20": average,
-                "epsilon": epsilon,
-            })
             print(f"[{name}] episode {episode + 1}/{config.episodes}  "
                   f"average of last 20: {average:.1f}  epsilon {epsilon:.2f}")
 
     env.close()
-    log_path = save_training_logs_csv(name, training_logs)
-    plot_path = plot_training_logs(name, training_logs)
+    save_training_logs_csv(name, training_logs)
+    plot_training_logs(name, training_logs)
     if best_average > 0:
         print(f"[{name}] saved {path} (best average {best_average:.1f})")
     else:
         print(f"[{name}] nothing saved, less than 20 episodes ran")
-    print(f"[{name}] training log saved to {log_path}")
-    print(f"[{name}] training plot saved to {plot_path}")
 
     return path
 
-
-if __name__ == "__main__":
-    for seed in range(10):
-        config = Config(episodes=1000, seed=seed)
-        train(f"domain_randomized_seed{seed}", config)

@@ -1,30 +1,20 @@
+"""Evaluate a strategy's ten seed models with `python -m evaluation.test_script`.
+
+Set STRATEGY_NAME to a prefix that matches files in weights/, such as
+"baseline", "domain_randomized", "boundary_focused", or "failure_focused".
+"""
 import torch
-import torch.nn as nn
-import torch.optim as optim
 import numpy as np
-import random
 import gym
-from collections import deque
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+from models.q_network import QNetwork
+
+STRATEGY_NAME = "baseline" #STRATEGY NAME
 
 
-# This is the 'standard' neural network
-class QNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim):
-        super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, action_dim)
-
-    def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        return self.fc3(x)
-
-
-def bar_plot(results):
+def bar_plot(results, strategy_name):
     data = results[0]
 
     avgs = {k: v for k, v in data.items() if k.startswith('Avg_')}
@@ -44,7 +34,8 @@ def bar_plot(results):
     plt.ylabel('Episode length')
     plt.title(f'Average score over all pole lengths = {round(overall_avg, 0)}')
 
-    plt.savefig("bar_plot.png")
+    os.makedirs("bar_plots", exist_ok=True)
+    plt.savefig(os.path.join("bar_plots", f"{strategy_name}_bar_plot.png"))
     plt.show()
 
 
@@ -84,7 +75,8 @@ def test_pole_length(env, q_network):
 
 def test_script():
     """
-    Evaluate all ten seed models over 30 pole lengths, with ten trials per model and length.
+    Evaluate seeds 0-9 over 30 pole lengths, with ten trials per model and length.
+    Each weight file must be named {STRATEGY_NAME}_seed{seed}.pth.
     """
 
     pole_lengths = np.linspace(0.4, 1.8, 30)
@@ -94,7 +86,7 @@ def test_script():
 
     models = []
     for seed in seeds:
-        trained_nn = f"domain_randomized_seed{seed}.pth"
+        trained_nn = f"{STRATEGY_NAME}_seed{seed}.pth"
         state_dim = 4
         action_dim = 2
         loaded_model = QNetwork(state_dim, action_dim)
@@ -129,11 +121,11 @@ def test_script():
     results["Total"] = total_score  # Store just the mean
     all_results.append(results)
 
-    bar_plot(all_results)
+    bar_plot(all_results, STRATEGY_NAME)
 
     # Convert list to DataFrame
     df = pd.DataFrame(all_results)
-    df.to_excel("experiment_results.xlsx", index=False)
+    df.to_excel(f"experiment_results_{STRATEGY_NAME}.xlsx", index=False)
 
 if __name__ == "__main__":
     test_script()

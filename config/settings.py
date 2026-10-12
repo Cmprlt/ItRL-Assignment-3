@@ -6,7 +6,7 @@ from typing import Tuple
 class Config:
     # for training
     length_range: Tuple[float, float] = (0.4, 1.8)  # pole lengths from this range
-    episodes: int = 500                             # episodes to train
+    episodes: int = 1000                             # episodes to train
     seed: int = 0                                   # seed for reproducible runs
 
     # for Learning
