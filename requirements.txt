@@ -4,4 +4,5 @@ numpy<2
 pandas
 matplotlib
 openpyxl
+scipy<1.17
 

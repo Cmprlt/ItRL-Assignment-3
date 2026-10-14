@@ -54,3 +54,11 @@ Set `STRATEGY_NAME` in `evaluation/test_script.py` to the matching weight prefix
 ```bash
 python -m evaluation.test_script
 ```
+
+## Statistical analysis
+
+```bash
+python -m evaluation.statistical_analysis
+```
+
+Evaluates every model with the test protocol, caches the mean score per seed in `data/seed_scores.csv`, and compares all strategy pairs with Welch's t-test. Each training seed is one sample (n = 10 per strategy). Delete the cache to re-evaluate.
