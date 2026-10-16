@@ -1,11 +1,15 @@
 import os
 import random
+import csv
 from collections import deque
 import torch
 import torch.optim as optim
 import gym
-from config import Config
-from network import QNetwork
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from config.settings import Config
+from models.q_network import QNetwork
 
 
 def to_tensor(state):
@@ -77,6 +81,22 @@ def learn(q_network, target_network, optimizer, buffer, config):
             t.mul_(1 - config.tau).add_(config.tau * q)
 
 
+def save_training_logs_csv(name, training_logs):
+    os.makedirs("data", exist_ok=True)
+    log_path = os.path.join("data", f"{name}_training_log.csv")
+    with open(log_path, "w", newline="", encoding="utf-8") as log_file:
+        writer = csv.writer(log_file)
+        writer.writerow(["episode", "total_episodes", "average_of_last_20", "epsilon"])
+        for entry in training_logs:
+            writer.writerow([
+                entry["episode"],
+                entry["total_episodes"],
+                f"{entry['average_20']:.1f}",
+                f"{entry['epsilon']:.2f}",
+            ])
+    return log_path
+
+
 def plot_training_logs(name, training_logs):
     os.makedirs("data", exist_ok=True)
     plot_path = os.path.join("data", f"{name}_training_plot.png")
@@ -110,23 +130,9 @@ def plot_training_logs(name, training_logs):
     return plot_path
 
 
-def save_training_logs_csv(name, training_logs):
-    os.makedirs("data", exist_ok=True)
-    log_path = os.path.join("data", f"{name}_training_log.csv")
-    with open(log_path, "w", newline="", encoding="utf-8") as log_file:
-        writer = csv.writer(log_file)
-        writer.writerow(["episode", "total_episodes", "average_of_last_20", "epsilon"])
-        for entry in training_logs:
-            writer.writerow([
-                entry["episode"],
-                entry["total_episodes"],
-                f"{entry['average_20']:.1f}",
-                f"{entry['epsilon']:.2f}",
-            ])
-    return log_path
-    
 
-def train(name, config=None, sampler = None):
+
+def train(name, config=None, sampler=None, episode_callback=None):
     '''
     Function trains the standart QNetwork provided with DQN and saves the weights
     as weights/<name>.pth.
@@ -135,6 +141,10 @@ def train(name, config=None, sampler = None):
     config = specify lenght range for the poles and seed, defaults to config.py if not set
     sampler is an optional argument = picks the pole length for every episode and (check samplers.py)
     if it is not set lengths come from config.py
+    episode_callback = optional callable invoked after each episode (and after
+    sampler.update, when a sampler is used). Receives a dict with episode,
+    pole_length, steps_survived, and epsilon. Defaults to None so existing
+    strategies are unchanged.
     '''
     config = config or Config()
 
@@ -151,6 +161,7 @@ def train(name, config=None, sampler = None):
     os.makedirs("weights", exist_ok=True)
     path = os.path.join("weights", f"{name}.pth")
     total_steps, history, best_average = 0, [], 0.0
+    training_logs = []
 
     for episode in range(config.episodes):
         #sampler picks the pole lenght for the episode if set
@@ -181,9 +192,18 @@ def train(name, config=None, sampler = None):
 
         history.append(steps)
         average = sum(history[-20:]) / len(history[-20:])
+        training_logs.append({"episode": episode + 1, "length": length, "steps": steps, "total_episodes": config.episodes, "average_20": average, "epsilon": epsilon})
 
         if sampler: #back to sampler - how many steps survived at this sampled length 
             sampler.update(length, steps)
+
+        if episode_callback is not None:
+            episode_callback({
+                "episode": episode + 1,
+                "pole_length": length,
+                "steps_survived": steps,
+                "epsilon": epsilon,
+            })
 
         # keep the best checkpoint only as the DQN can get worse later in training
         if len(history) >= 20 and average > best_average:
@@ -195,6 +215,8 @@ def train(name, config=None, sampler = None):
                   f"average of last 20: {average:.1f}  epsilon {epsilon:.2f}")
 
     env.close()
+    save_training_logs_csv(name, training_logs)
+    plot_training_logs(name, training_logs)
     if best_average > 0:
         print(f"[{name}] saved {path} (best average {best_average:.1f})")
     else:
@@ -202,7 +224,3 @@ def train(name, config=None, sampler = None):
 
     return path
 
-
-if __name__ == "__main__":
-    # creates the baseline with pole lenght default 0.5
-    train("baseline_seed0", Config(length_range=(0.5, 0.5), seed=0))

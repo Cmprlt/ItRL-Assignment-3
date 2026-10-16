@@ -4,6 +4,7 @@ Each sampler has the same 2 methods which train() would call:
 sample() = the pole length for the next episode
 update(length,steps) = how that episode went, so how many steps survived at that length
 '''
+
 class TestSampler():
     '''
     For testing purposes before we choose the speicific strategies
